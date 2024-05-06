@@ -3,153 +3,136 @@
 # This can be overridden by a var-file.yml at the command line
 # User's input variables
 
+##################################################################################################################################################
+# Cluster specific variables
+##################################################################################################################################################
+
 #Name of the ONTAP Cluster
-cluster_name: a400-cluster
+cluster_name: AA02-A800
 
-#Names of the Nodes in the ONTAP Cluster
-nodes: 
- - a400-cluster-01
- - a400-cluster-02
+#Location of the ONTAP Cluster
+cluster_location: "Cisco RTP, Building 4, Lab 141, AA02"
 
-#List the names of the nodes and all their ports that will be used (Do not include Cluster Ports)
-#These portnames are used to remove them from default broadcast domain created during cluster setup
-node_ports:
-  - {node_name: "a400-cluster-01", ports: ["e0e","e0f","e0g","e0h"]}
-  - {node_name: "a400-cluster-02", ports: ["e0e","e0f","e0g","e0h"]}
+#Cluster management LIF already exists (pre-requisite), so note down name of cluster management LIF and enter below.
+cluster_mgmt_interface: cluster_mgmt
 
-#List the names of the nodes and all their ports that will be used for data traffic
-#This should not include cluster and UTA ports used as fc target
-node_data_ports:
-  - {node_name: "a400-cluster-01", ports: ["e0e","e0f","e0g","e0h"]}
-  - {node_name: "a400-cluster-02", ports: ["e0e","e0f","e0g","e0h"]}
+#ONTAP Licensing Format
+#Note: ONTAP 9.10.1 and later for FAS/AFF storage systems uses a new file-based licensing solution known as NetApp License File, or NLF. Prior versions of ONTAP used 28-character keys called as legacy license keys.
+ontap_license_key_format:  #Options are "legacy" and "NLF"
+#  - legacy
+  - NLF
+  
+#List the Legacy License Keys for the different features that you need
+legacy_license_keys:
+#  - License-Key-1
+#  - License-Key-2
 
-#Enter the count of the total number of ports in the cluster that will be used for data traffic, exclude cluster ports and management ports from the count
-total_port_count: 8
 
-# Network settings for the Service processor
-sp:
-  - {node: "a400-cluster-01", ip: "", mask: "", gateway: ""}
-  - {node: "a400-cluster-02", ip: "", mask: "", gateway: ""}
+#Path to NetApp License File (NLF)
+nlf_filepath:
+#  - "/root/license/EvalNLF-data-license.txt"
+#  - "/root/license/EvalNLF-encryption-license.txt"
+#  - "/root/license/EvalNLF-hybrid-license.txt"
+#  - "/root/license/EvalNLF-NVMe-license.txt"
 
-#List the ONTAP Licenses for the different features that you need
-ontap_license:
-  - <license_key_1>
-  - <license_key_2>
-  - <license_key_3>
-  - <license_key_4> #Add more rows for additional license keys
+#Details for configuring NetApp AutoSupport
+autosupport_vars:
+  mail_hosts: 10.102.1.150
+  proxy_url: #Optional: If authentication is used, use format: "username:password@host:port"
+  from_address: "aa02-a800@flexpodb4.cisco.com"
+  to_addresses: "<email-address>"
 
-#Details of the Data Aggregates that need to be created
-#If Aggregate creation takes longer, subsequent tasks of creating volumes may fail.
-#There should be enough disks already zeroed in the cluster, otherwise aggregate create will zero the disks and will take long time
-data_aggregates:
-  - {aggr_name: aggr01_node01, diskcount: 10}
-  - {aggr_name: aggr01_node02, diskcount: 10}
+#FIPS Mode on the ONTAP Cluster. By default, SSL on ONTAP is set with FIPS compliance disabled. Set this to "true" if you want to enable FIPS-compliant mode for the cluster
+is_fips_enabled: true
+
+#SNMP related variables
+enable_snmp: true
+#Please make sure to fill out the below details if you have chosen to enable SNMP, leaving it empty will cause the setup to fail
+snmp_contact: "<email-address>"
+snmp_location: "Cisco RTP, Building 4, Lab 141, AA02"
+traphost_ip: "10.102.0.94"  #An SNMPv1 traphost is non-compliant to FIPS. You can only configure SNMPv1 traps if "is_fips_enabled" is set to false. Modify this value if Cluster FIPS mode is disabled
+snmp_community: "public"  #Update this field only if "is_fips_enabled" is set to false. SNMPv1 and SNMPv2c are enabled after you create an SNMP community. SNMPv1 and SNMPv2c are not supported when cluster FIPS mode is enabled
+
+#SNMPv3 related variables
+user: snmpadmin   #The name of the SNMPv3 user to manage
+authentication_protocol: sha   #Authentication protocol for the snmp user (Choices: none, md5, sha, sha2-256). If "is_fips_enabled" is set to true, the options are 'sha' and 'sha2-256'. SNMPv3 user with none or MD5 as authentication protocol is non-compliant to FIPS
+authentication_password: "{{ password_1 }}"   #Password for the authentication protocol. This is required for ‘md5’, ‘sha’ and ‘sha2-256’ authentication protocols and not required for ‘none’
+privacy_protocol: aes128   #Privacy protocol for the snmp user (Choices: none, des, aes128). When cluster FIPS mode is on (is_fips_enabled: true), ‘aes128’ is the only possible and valid value. SNMPv3 user with none or DES as encryption protocol is non-compliant to FIPS
+privacy_password: "{{ password_1 }}"   #Password for the privacy protocol. This is required for ‘des’ and ‘aes128’ privacy protocols and not required for ‘none’
+
+#Cluster Login banner Text message
+cluster_login_banner: Access restricted to authorized users
+
+#Text sent in the subject line of the AutoSupport message
+autosupport_message: "FlexPod ONTAP Storage configuration completed"
+
+##################################################################################################################################################
+# Node/ Controller level information
+##################################################################################################################################################
+
+ha_pairs:
+  - ha_no: 1
+    node_port_count: "2"
+    node_data_ports: ["e5a","e5b"]
+    node_specs:
+    - node_name: AA02-A800-01
+      sp: {ip: 10.102.0.28, mask: 255.255.255.0, gateway: 10.102.0.254}
+      data_aggregates:
+        - {aggr_name: AA02_A800_01_NVME_SSD_1, diskcount: 23}  
+      nfs_lifs: {name: nfs-lif-01, address: 192.168.50.31, netmask: 255.255.255.0}  #Fill out this value only if nfs will be mentioned under allowed_protocols in svm_specs
+      iscsi_lifs:  #Fill out this value only if iscsi will be mentioned under allowed_protocols in svm_specs. Provide one iSCSI LIF per iSCSI VLAN
+        - {name: iscsi-lif-01a, address: 192.168.10.31, netmask: 255.255.255.0, fabric: A}  #Do not change the fabric ID
+        - {name: iscsi-lif-01b, address: 192.168.20.31, netmask: 255.255.255.0, fabric: B}  #Do not change the fabric ID
+      nvme_tcp_lifs:  #Fill out this value only if iscsi and nvme will be mentioned under allowed_protocols in svm_specs. Provide one NVMe/TCP LIF per NVMe/TCP VLAN
+        - {name: nvme-tcp-lif-01a, address: 192.168.30.31, netmask: 255.255.255.0, fabric: A}  #Do not change the fabric ID
+        - {name: nvme-tcp-lif-01b, address: 192.168.40.31, netmask: 255.255.255.0, fabric: B}  #Do not change the fabric ID
+    - node_name: AA16-A400-02
+      sp: {ip: 10.102.0.29, mask: 255.255.255.0, gateway: 10.102.0.254}
+      data_aggregates:
+        - {aggr_name: AA02_A800_02_NVME_SSD_1, diskcount: 23}  
+      nfs_lifs: {name: nfs-lif-02, address: 192.168.50.32, netmask: 255.255.255.0}  #Fill out this value only if nfs will be mentioned under allowed_protocols in svm_specs
+      iscsi_lifs:  #Fill out this value only if iscsi will be mentioned under allowed_protocols in svm_specs. Provide one iSCSI LIF per iSCSI VLAN
+        - {name: iscsi-lif-02a, address: 192.168.10.32, netmask: 255.255.255.0, fabric: A}  #Do not change the fabric ID
+        - {name: iscsi-lif-02b, address: 192.168.20.32, netmask: 255.255.255.0, fabric: B}  #Do not change the fabric ID
+      nvme_tcp_lifs:  #Fill out this value only if iscsi and nvme will be mentioned under allowed_protocols in svm_specs. Provide one NVMe/TCP LIF per NVMe/TCP VLAN
+        - {name: nvme-tcp-lif-02a, address: 192.168.30.32, netmask: 255.255.255.0, fabric: A}  #Do not change the fabric ID
+        - {name: nvme-tcp-lif-02b, address: 192.168.40.32, netmask: 255.255.255.0, fabric: B}  #Do not change the fabric ID
+
+##################################################################################################################################################
+#SVM specific variables
+##################################################################################################################################################
+
+svm_specs:
+  svm_name: Infra-SVM
+  allowed_protocols:  #provide the values in lower case only, supported options for this solution are nfs, fcp, iscsi, nvme
+    - nfs                          
+    - nvme    #For NVMe/TCP config, use nvme and iscsi
+    - iscsi
+  client_match: 192.168.50.0/24
+  data_protocol: nfs
+#    - {name: vcls_datastore2, size: 100, residing_aggr: AA02_A800_02_NVME_SSD_1}
+  svm_mgmt_lif: {home_node: AA02-A800-01, address: 10.102.1.30, netmask: 255.255.255.0, gateway: 10.102.1.254, lif_name: svm-mgmt}
+  vsadmin_password: "{{ password_1 }}"
+  os_type: vmware
+  dns_server_svm:
+    - "{{ dns_servers[0].ip_address }}"
+    - "{{ dns_servers[1].ip_address }}"
+  dns_domain_svm: "{{ dns_domain_name }}"
+  svm_login_banner: The Infra-SVM is reserved for authorized users only!  #SVM Login banner Text message
+  audit_log_volume_specs: {name: audit_log, size: 50, residing_aggr: AA02_A800_01_NVME_SSD_1}  #Audit log destination volume where consolidated audit logs will be stored
+
+##################################################################################################################################################
+# Default/Best Practice related information - Change only if required
+##################################################################################################################################################
+
+#Following variable is used in a task to ensure auto revert for cluster management LIF is set to True.
+cluster_mgmt_auto_revert: true
 
 #Name of the Interface group to be created
 ifgrp_name: a0a
 
 ifgrp_mode: multimode_lacp
 
-ontap_vlan_state: present
-
-#Details of the NFS LIFs to be created for the OpenShift SVM
-ocp_nfs_lifs:
-  - {name: ocp_nfs_lif01, address: 192.168.20.10, netmask: 255.255.255.0, home_node: "a400-cluster-01"}
-  - {name: ocp_nfs_lif02, address: 192.168.20.20, netmask: 255.255.255.0, home_node: "a400-cluster-02"}
-
-#Client match for the export policy rule, that is used by the SVM network to present the persistent storage to OCP
-#This will the Persistent NFS network that is assigned to the Kubernetes worker nodes
-client_match: 192.168.20.0/24
-
-#Data Protocol to be used for export policy rules
-data_protocol: nfs
-
-#SVM Management LIF Details
-ocp_svm_specs:
-  - {home_port: e0M, address: 192.168.10.25, netmask: 255.255.255.0, gateway: 192.168.10.254, lif_name: ocp_svm_mgmt}
-
-# Following two variables are used in a task to ensure auto revert for cluster management LIF is set to True.
-cluster_mgmt_auto_revert: true
-
-# Cluster management LIF already exists (pre-requisite), so note down name of cluster management LIF and enter below.
-cluster_mgmt_interface: cluster_mgmt
-
-#Name of SVM created for OCP data services
-ocp_svm: OCP-SVM
-
-#Password for vsadmin user of OCP SVM
-vsadmin_password: <password>
-
-#List of aggregates for OCP SVM
-aggr_list: [] #DO NOT UPDATE, for system use
-
-# Root volume for OCP svm
-ocp_root_volume: ocp_root
-
-#Create root mirror volumes for OCP SVM
-mirror_volumes:
-  - {mirror_volume: ocp_rootvol_m01}
-  - {mirror_volume: ocp_rootvol_m02}
-
 #Job Schedule
 job_schedule:
-  - {job_name: 15min,job_minutes: 15}
-
-#Details for configuring NetApp AutoSupport
-autosupport_vars:
-  mail_hosts: "ftp.flexpod.com"
-  noteto: "ocp_admin@flexpod.com"
-
-#Management VLANs for all components
-#Add additional rows for vlans as necessary
-primary_vlans:
-   - {vlan_id: 13, name: "management"}
-
-#Storage VLANs
-#Add additional rows for vlans as necessary
-storage_vlans:
-   - {vlan_id: "3014", name: "OCP_iSCSI_A", protocol: "iSCSI"}
-   - {vlan_id: "3024", name: "OCP_iSCSI_B", protocol: "iSCSI"}
-   - {vlan_id: "3154", name: "OCP_NFS", protocol: "NFS"}
-
-#iSCSI LIfs on Node 1 of the cluster for OCP data
-iscsi_lifs_node01:
-  - {name: ocp_iscsi_lif01a, address: 192.168.30.10, netmask: 255.255.255.0}
-  - {name: ocp_iscsi_lif01b, address: 192.168.40.10, netmask: 255.255.255.0}
-
-#iSCSI LIfs on Node 2 of the cluster for OCP data
-iscsi_lifs_node02:
-  - {name: ocp_iscsi_lif02a, address: 192.168.30.20, netmask: 255.255.255.0}
-  - {name: ocp_iscsi_lif02b, address: 192.168.40.20, netmask: 255.255.255.0}
-
-#List the protocols that will need to be allowed on the OCP Storage Virtual Machine
-#This variable is also used to configure other infrastructure components for appropriate protocols
-allowed_protocols:
-  - nfs
-  - iscsi
-
-#NTP Server across all the components
-#Route to NTP server must exist from each device in the infrastructure
-ntp_server:
-  - 192.168.10.1
-  - 192.168.10.100
-
-# DNS Servers across all the components
-#Route to DNS server must exist from each device in the infrastructure
-dns_server:
-  - 192.168.10.250
-  - 192.168.10.251
-
-#DNS Domain Name
-dns_domain: "ocp.flexpod.com"
-
-#Time zone names are from the L(tz database,https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
-timezone: "America/New_York"
-
-#SNMP related variables
-enable_snmp: true
-#Please make sure to fill out the below details if you have chosen to enable SNMP, leaving it empty will cause the setup to fail
-snmp_contact: "Administrator"
-snmp_location: ""
-traphost_ip: 
-snmp_community: "FlexPod-OCP"
+  - {job_name: 15min, job_minutes: 15}
