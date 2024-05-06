@@ -103,8 +103,8 @@ ha_pairs:
 ##################################################################################################################################################
 
 svm_specs:
-  svm_name: Infra-SVM
-  allowed_protocols:  #provide the values in lower case only, supported options for this solution are nfs, fcp, iscsi, nvme
+  svm_name: OCP-SVM
+  allowed_protocols:  #provide the values in lower case only, supported options for this solution are nfs, iscsi, nvme
     - nfs                          
     - nvme    #For NVMe/TCP config, use nvme and iscsi
     - iscsi
