@@ -1,20 +1,56 @@
 #Create the Export policy rule on the Workload SVM to be used by Trident
 - name: Create the export policy rules
-  na_ontap_export_policy_rule: 
-    state: present 
-    vserver: "{{ocp_svm}}" 
-    policy_name: default 
-    client_match: "{{client_match}}" 
-    protocol: "{{data_protocol}}" 
-    ro_rule: sys 
-    rw_rule: sys 
-    super_user_security: sys 
-    allow_suid: False 
-    hostname: "{{inventory_hostname}}" 
-    username: "{{username}}" 
+  netapp.ontap.na_ontap_export_policy_rule:
+    state: present
+    vserver: "{{item.svm_name}}"
+    policy_name: default
+    client_match: "{{item.client_match}}"
+    protocol: "{{item.data_protocol}}"
+    ro_rule: sys
+    rw_rule: sys
+    rule_index: 1
+    super_user_security: sys
+    allow_suid: True
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
     password: "{{password}}"
-    https: true 
+    https: true
     validate_certs: false
+  with_items:
+    - "{{svm_specs}}"
   tags:
     - ontap_export_policy_rule
+# Get the SVM root volume information
+- name: Get the SVM root volume information
+  netapp.ontap.na_ontap_rest_info:
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+    use_rest: always
+    use_python_keys: true
+    gather_subset:
+      - volume_info
+    parameters:
+      name: "*root"
+      svm.name: "{{svm_specs.svm_name}}"
+  register: svm_rootvol
+  tags:
+    - ontap_update_ls_mirrors
 
+# Update set of load-sharing mirrors
+- name: Update load-sharing mirrors
+  netapp.ontap.na_ontap_rest_cli:
+    command: 'snapmirror/update-ls-set'
+    verb: 'POST'
+    body: {'source-path': '{{item.svm_name}}:{{svm_rootvol.ontap_info.storage_volumes.records[0].name}}'}
+    hostname: "{{inventory_hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    https: true
+    validate_certs: false
+  with_items:
+    - "{{svm_specs}}"
+  tags:
+    - ontap_update_ls_mirrors
