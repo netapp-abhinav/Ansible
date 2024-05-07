@@ -1,80 +1,152 @@
+# This is the top-level variable file that will be used for the FlexPod setup. It is setup in this case to have FC
+# SAN boot with FC-NVMe and NFS storage protocols. Notice that the configure_iSCSI variable is set to false, meaning FC
+# boot is configured. We are also assuming that FC-NVMe will only be used with FC boot and that NVMe-TCP will only be
+# used with iSCSI boot. Also, all protocols can be set to 'true'. 
 #
-#This is the list of all the VLANs that will be defined on Nexus, UCS and OCP
-#
-# Commenting out the following two variables will skip the iSCSI and/or FC configurations
-configure_iscsi: "yes"
-#configure_fc: "yes"
-configure_nfs: "yes"
-#
-# Uncomment and update the the following lines to setup NTP Server(s)
-ntp_servers:
-  - ip_address: "192.168.156.21"
-  - ip_address: "192.168.156.22"
-#
-# Uncomment and update the the following lines to setup DNS Server(s)
-dns_servers:
-  - ip_address: "10.1.156.250"
-  - ip_address: "10.1.156.251"
+# Setting the following variables to anything but 'true' ('false' is suggested when not using 'true'), will cause the 
+# protocol to not be configured.
+configure_iscsi: 'false'
+configure_nvme_tcp: 'false'  # Only set this to 'true' if configure_iscsi is set to 'true'
+configure_nfs: 'true'    
+# Update the the following lines to setup NTP Server(s)
+# Note that the Nexus switches can be used to distribute NTP within the FlexPod and keep most NTP queries within the pod. When Nexus NTP distribution is setup, all L3 interfaces on the switch can be queried as NTP servers, including the IPs on the mgmt0 ports. In this FlexPod setup, the mgmt0 ports in the OOB-MGMT VLAN are setup along with SVI interfaces in the IB-MGMT VLAN to allow physical devices, ESXi hosts, and VMs to query NTP within the VLAN and within the pod.
+use_nexus_ntp_distribution: 'true' # If not using Nexus NTP distribution, set this to 'false'.
+global_NTP_servers:   # These are the Global NTP servers from outside the FlexPod (normally 2 or more).
+  - "10.102.0.251"
+  - "10.102.0.252"
+ntp_servers:  # The first two entries here are the Nexus mgmt0 OOB-MGMT IPs. The third entry is a global NTP server because NetApp ONTAP requires three NTP servers. If not using Nexus NTP distribution, set all three of these still needed values to global NTP servers.
+  - ip_address: "10.102.0.3"
+  - ip_address: "10.102.0.4"
+  - ip_address: "10.102.0.254"
+ib_mgmt_ntp_servers:   # Assigned IB-MGMT NTP Addresses to be used by ESXi hosts and VMs. If not using Nexus NTP distribution, set these still needed values to global NTP servers.
+  - ip_address: "10.102.1.3"
+  - ip_address: "10.102.1.4"
 
-# Uncomment and update the the following line to setup Timezone
+# Update the the following lines to setup DNS Server(s)
+# Note: The Nexus and MDS scripts assume exactly 2 DNS servers.
+dns_servers:
+  - ip_address: "10.102.1.151"
+  - ip_address: "10.1.102.1521"
+
+# DNS Domain Name
+dns_domain_name: "flexpodb4.cisco.com"
+
+# Update the the following line to setup Timezone
 time_zone: 'America/New_York'
 
+# Storage SAN Identifiers
+# Storage iSCSI Target Interfaces
+#
+iscsi_lif_01a: '192.168.10.31'
+iscsi_lif_01b: '192.168.20.31'
+iscsi_lif_02a: '192.168.10.32'
+iscsi_lif_02b: '192.168.20.32'
+#
+# Storage iSCSI Target IQN
+#
+storage_iscsi_IQN: 'iqn.1992-08.com.netapp:sn.b04bca2ff83a11eea2aad039ea166b8c:vs.3'
+#
+# This is the list of all the VLANs that will be defined on Nexus, Storage, UCS, and VMware
 # VLAN Names are adjustable and can be modified in here
+# Comment out any VLANs that are not used here and below (iSCSI and NVMe-TCP)
 #
 native_vlan_name: 'Native-Vlan' # Native VLAN
+native_vlan_id: 2
 oob_vlan_name: 'OOB-MGMT' # Out of Band Mgmt VLAN
-baremetal_vlan_name: 'OCP-Baremetal' # Baremetal Management VLAN
-provisioning_vlan_name: 'OCP-Provisioning' # VLAN to carry provisioning traffic
-vm_traffic_vlan_name: 'OCP-VM-Traffic' # VLAN for VM management interfaces
-persistent_nfs_vlan_name: 'OCP-Persistent-NFS' # NFS Traffic between OCP and Storage for Persistent Storage
-iscsiA_vlan_name: 'OCP-Persistent-iSCSI-A' # iSCSI-A VLAN for Persistent Storage 
-iscsiB_vlan_name: 'OCP-Persistent-iSCSI-B' # iSCSI-B VLAN for Persistent Storage
+oob_vlan_id: 1020
+ib_vlan_name: 'IB-MGMT' # IN BAND Management VLAN
+ib_vlan_id: 1021
+nfs_vlan_name: 'Infra-NFS' # NFS Traffic between ESXi and Storage
+nfs_vlan_id: 3050
+iscsiA_vlan_name: 'Infra-iSCSI-A' # iSCSI-A VLAN (if needed)
+iscsiA_vlan_id: 3010
+iscsiB_vlan_name: 'Infra-iSCSI-B' # iSCSI-B VLAN (if needed)
+iscsiB_vlan_id: 3020
+nvme_tcpA_vlan_name: 'Infra-NVMe-TCP-A' # NVMe-TCP-A VLAN (if needed)
+nvme_tcpA_vlan_id: 3030
+nvme_tcpB_vlan_name: 'Infra-NVMe-TCP-B' # NVMe-TCP-B VLAN (if needed)
+nvme_tcpB_vlan_id: 3040
+#
 # lan_state should be set to 'present' to configure the objects
 # In future, this parameter will be used for deleting the configuration
 #
 lan_state : 'present'
 #
-vlan_list:
+# VLAN Lists - Comment out or remove any VLANs not being used.
+#
+# The ib_mgmt_vlan_list contains one entry, the IB-MGMT VLAN.
+#
+ib_mgmt_vlan_list:
+  - name: "{{ ib_vlan_name }}"
+    id: "{{ ib_vlan_id }}"
+    native: 'no'
+    state: "{{ lan_state }}"
+#
+# The storage_vlan_list contains VLANs that are configured on the storage controllers.
+# These VLANs are also configured in the UCS and in the Nexus switches. This list has
+# two extra fields, storage_protocol, and fabric. Do not remove these extra fields.
+#
+storage_vlan_list:
+  - name: "{{ nfs_vlan_name }}"
+    id: "{{ nfs_vlan_id }}"
+    native: 'no'
+    storage_protocol: NFS
+    state: "{{lan_state}}"
+    # ISCSI A and B VLANs should be deleted or commented out for Fiber-Channel-Only deployments
+#  - name: "{{ iscsiA_vlan_name }}"
+#    id: "{{ iscsiA_vlan_id }}"
+#    native: 'no'
+#    storage_protocol: iSCSI
+#    fabric: A
+#    state: "{{lan_state}}"
+#  - name: "{{ iscsiB_vlan_name }}"
+#    id: "{{ iscsiB_vlan_id }}"
+#    native: 'no'
+#    storage_protocol: iSCSI
+#    fabric: B
+#    state: "{{lan_state}}"
+#  - name: "{{ nvme_tcpA_vlan_name }}"
+#    id: "{{ nvme_tcpA_vlan_id }}"
+#    native: 'no'
+#    storage_protocol: NVMe
+#    fabric: A
+#    state: "{{lan_state}}"
+#  - name: "{{ nvme_tcpB_vlan_name }}"
+#    id: "{{ nvme_tcpB_vlan_id }}"
+#    native: 'no'
+#    storage_protocol: NVMe
+#    fabric: B
+#    state: "{{lan_state}}"
+
+# The remaining_vlan_list contains all vlans that are not configured on storage,
+# but are configured in Nexus and UCS.
+#
+remaining_vlan_list:
   - name: "{{ native_vlan_name }}"
-    id: '2'
+    id: "{{ native_vlan_id }}"
     native: 'yes'
     state: "{{lan_state}}"
   - name: "{{ oob_vlan_name }}"
-    id: '13'
+    id: "{{ oob_vlan_id }}"
     native: 'no'
     state: "{{lan_state}}"
-  - name: "{{ baremetal_vlan_name }}"
-    id: '113'
+  - name: "{{ vm_vlan_name }}"
+    id: "{{ vm_vlan_id }}"
     native: 'no'
     state: "{{lan_state}}"
-  - name: "{{ provisioning_vlan_name }}"
-    id: '904'
+  - name: "{{ vmotion_vlan_name }}"
+    id: "{{ vmotion_vlan_id }}"
     native: 'no'
     state: "{{lan_state}}"
-  - name: "{{ vm_traffic_vlan_name }}"
-    id: '914'
-    native: 'no'
-    state: "{{lan_state}}"
-  - name: "{{ persistent_nfs_vlan_name }}"
-    id: '3154'
-    native: 'no'
-    state: "{{lan_state}}"
-  - name: "{{ iscsiA_vlan_name }}"
-    id: '3014'
-    native: 'no'
-    state: "{{lan_state}}"
-  - name: "{{ iscsiB_vlan_name }}"
-    id: '3024'
-    native: 'no'
-    state: "{{lan_state}}"
-#
-# VLANs definition below will be used to setup trunk ports on Nexus Switches
+
+# VLANs definitions below will be used to setup trunk ports on Nexus Switches
 # all_vlans_list: for vpc_peer_link and UCS FI trunk ports
-all_vlans_list: "13,113,904,914,3154,3014,3024"
-# storage_vlans_list: for storage ports
-storage_vlans_list: "113,3014,3024,3154"
-# mgmt_vlans_list: for management switch trunk port
-mgmt_vlans_list: "13,113"
+# These VLANs must be same or a subset of the vlan_list abovea
+# Comment out or remove any VLANs that are not used (iSCSI and NVMe-TCP)
+# In future, these values will be auto-generated
 #
-native_vlan_id: "2"
-#
+all_vlans_list: "{{ oob_vlan_id }},{{ ib_vlan_id }},{{ vm_vlan_id }},{{ nfs_vlan_id }},{{ vmotion_vlan_id }}" #,{{ iscsiA_vlan_id }},{{ iscsiB_vlan_id }},{{ nvme_tcpA_vlan_id }},{{ nvme_tcpB_vlan_id }}"
+# storage_vlans_list: for storage uplink trunk ports
+storage_vlans_list: "{{ ib_vlan_id }},{{ nfs_vlan_id }}" #,{{ iscsiA_vlan_id }},{{ iscsiB_vlan_id }},{{ nvme_tcpA_vlan_id }},{{ nvme_tcpB_vlan_id }}"
+# mgmt_vlans_list: for uplink/management switch trunk port
+mgmt_vlans_list: "{{ oob_vlan_id }},{{ ib_vlan_id }},{{ vm_vlan_id }}"
