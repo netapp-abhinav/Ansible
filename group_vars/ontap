@@ -1,7 +1,5 @@
-# Credentials for connecting to the ONTAP Cluster
+# This variable file is used by the playbooks for the ontap 
+# These don't have to be explicitly imported by the var_files: they are autopopulated
+# Credentials for connecting to the ONTAP cluster 
 username: admin
-password: password
-
-# Management IP Addresses of the two nodes in the ONTAP Cluster
-ontap_a: 192.168.10.10 #Sample
-ontap_b: 
+password: "{{ password_1 }}"
