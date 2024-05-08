@@ -7,13 +7,13 @@ configure_nvme_tcp: 'false'  # Only set this to 'true' if configure_iscsi is set
 configure_nfs: 'true'    
 # Update the the following lines to setup NTP Server(s)
 # Note that the Nexus switches can be used to distribute NTP within the FlexPod and keep most NTP queries within the pod. When Nexus NTP distribution is setup, all L3 interfaces on the switch can be queried as NTP servers, including the IPs on the mgmt0 ports. In this FlexPod setup, the mgmt0 ports in the OOB-MGMT VLAN are setup along with SVI interfaces in the IB-MGMT VLAN to allow physical devices, ESXi hosts, and VMs to query NTP within the VLAN and within the pod.
-use_nexus_ntp_distribution: 'true' # If not using Nexus NTP distribution, set this to 'false'.
+use_nexus_ntp_distribution: 'false' # If not using Nexus NTP distribution, set this to 'false'.
 global_NTP_servers:   # These are the Global NTP servers from outside the FlexPod (normally 2 or more).
   - "10.102.0.251"
   - "10.102.0.252"
 ntp_servers:  # The first two entries here are the Nexus mgmt0 OOB-MGMT IPs. The third entry is a global NTP server because NetApp ONTAP requires three NTP servers. If not using Nexus NTP distribution, set all three of these still needed values to global NTP servers.
-  - ip_address: "10.102.0.3"
-  - ip_address: "10.102.0.4"
+  - ip_address: "10.102.0.251"
+  - ip_address: "10.102.0.252"
   - ip_address: "10.102.0.254"
 ib_mgmt_ntp_servers:   # Assigned IB-MGMT NTP Addresses to be used by Master and Worker nodes. If not using Nexus NTP distribution, set these still needed values to global NTP servers.
   - ip_address: "10.102.1.3"
@@ -26,7 +26,7 @@ dns_servers:
   - ip_address: "10.1.102.1521"
 
 # DNS Domain Name
-dns_domain_name: "flexpodb4.cisco.com"
+dns_domain_name: "fpsa.netapp.com"
 
 # Update the the following line to setup Timezone
 time_zone: 'America/New_York'
@@ -50,11 +50,11 @@ storage_iscsi_IQN: 'iqn.1992-08.com.netapp:sn.b04bca2ff83a11eea2aad039ea166b8c:v
 native_vlan_name: 'Native-Vlan' # Native VLAN
 native_vlan_id: 2
 oob_vlan_name: 'OOB-MGMT' # Out of Band Mgmt VLAN
-oob_vlan_id: 1020
+oob_vlan_id: 67
 ib_vlan_name: 'IB-MGMT' # IN BAND Management VLAN
-ib_vlan_id: 1021
-nfs_vlan_name: 'Infra-NFS' # NFS Traffic between ESXi and Storage
-nfs_vlan_id: 3050
+ib_vlan_id: 200
+nfs_vlan_name: 'Infra-NFS' # NFS network for the containers
+nfs_vlan_id: 1723
 iscsiA_vlan_name: 'Infra-iSCSI-A' # iSCSI-A VLAN (if needed)
 iscsiA_vlan_id: 3010
 iscsiB_vlan_name: 'Infra-iSCSI-B' # iSCSI-B VLAN (if needed)
